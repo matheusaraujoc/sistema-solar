@@ -28,31 +28,23 @@
             bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
-            width: 180px;
-            height: 180px;
+            width: 150px;
+            height: 150px;
         }
         .mobile-button {
             position: absolute;
-            width: 60px;
-            height: 60px;
-            background-color: rgba(255,255,255,0.4);
-            border-radius: 30px;
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255,255,255,0.3);
+            border-radius: 25px;
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
             user-select: none;
             -webkit-user-select: none;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .mobile-button:active {
-            background-color: rgba(255,255,255,0.6);
-            transform: scale(0.95);
         }
         .up-button {
             top: 0;
@@ -78,36 +70,10 @@
             transform: translateX(-50%);
             width: 80%;
             max-width: 300px;
-            background-color: rgba(0,0,0,0.4);
-            padding: 10px;
-            border-radius: 20px;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
         }
         .speed-slider {
             width: 100%;
             height: 30px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: rgba(255,255,255,0.2);
-            outline: none;
-            border-radius: 15px;
-        }
-        .speed-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: white;
-            cursor: pointer;
-        }
-        .speed-slider::-moz-range-thumb {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: white;
-            cursor: pointer;
         }
         .touch-area {
             display: none;
@@ -117,26 +83,6 @@
             width: 100%;
             height: 70%;
             z-index: 10;
-        }
-        #touchDebug {
-            display: none;
-            position: absolute;
-            top: 80px;
-            left: 10px;
-            color: white;
-            background-color: rgba(0,0,0,0.5);
-            padding: 5px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 100;
-        }
-        @media (max-height: 600px) {
-            .mobile-controls {
-                bottom: 30px;
-            }
-            .speed-control {
-                bottom: 10px;
-            }
         }
         @media (max-width: 768px) {
             .mobile-controls, .speed-control, .touch-area {
@@ -187,12 +133,10 @@
         // Variáveis para controle de toque
         let touchStartX = 0;
         let touchStartY = 0;
-        let touchRotationSpeed = 0.005; // Aumentado para melhor sensibilidade
+        let touchRotationSpeed = 0.002; // Ajuste conforme necessário
         let rotationX = 0;
         let rotationY = 0;
         let touchActive = false;
-        let lastTouchTime = 0;
-        let touchSensitivity = 1.0; // Fator de sensibilidade
 
         const planetData = [
             { name: "Mercúrio", color: 0xC4C4C4, size: 3.8, distance: 60, speed: 0.008, moons: [] },
@@ -295,64 +239,32 @@
             // Configurar controles de toque para rotação da câmera
             const touchArea = document.getElementById('touchArea');
             
-            // Criar elemento de debug para desenvolvedores (oculto por padrão)
-            const touchDebug = document.createElement('div');
-            touchDebug.id = 'touchDebug';
-            document.body.appendChild(touchDebug);
-            
             touchArea.addEventListener('touchstart', function(e) {
                 e.preventDefault();
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
                 touchActive = true;
-                lastTouchTime = performance.now();
-                
-                // Para debug
-                // touchDebug.style.display = 'block';
-                // touchDebug.textContent = `Start: ${touchStartX.toFixed(0)}, ${touchStartY.toFixed(0)}`;
             });
             
             touchArea.addEventListener('touchmove', function(e) {
                 e.preventDefault();
                 if (!touchActive) return;
                 
-                const currentTime = performance.now();
-                const deltaTime = currentTime - lastTouchTime;
-                lastTouchTime = currentTime;
-                
-                // Limitar taxa de atualização para movimentos suaves
-                if (deltaTime < 5) return;
-                
                 const touchX = e.touches[0].clientX;
                 const touchY = e.touches[0].clientY;
                 
-                const deltaX = (touchX - touchStartX) * touchSensitivity;
-                const deltaY = (touchY - touchStartY) * touchSensitivity;
+                const deltaX = touchX - touchStartX;
+                const deltaY = touchY - touchStartY;
                 
-                // Aplicar rotação ao redor do eixo Y (horizontal)
-                const rotationYAxis = new THREE.Vector3(0, 1, 0);
+                // Aplicar a rotação diretamente aos quaternions da câmera
                 const rotationXQuat = new THREE.Quaternion();
-                rotationXQuat.setFromAxisAngle(rotationYAxis, -deltaX * touchRotationSpeed);
-                camera.quaternion.premultiply(rotationXQuat);
+                rotationXQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -deltaX * touchRotationSpeed);
                 
-                // Aplicar rotação ao redor do eixo X (vertical)
-                // Obter o vetor "direita" da câmera para rotação vertical consistente
-                const rightVector = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
                 const rotationYQuat = new THREE.Quaternion();
+                rotationYQuat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -deltaY * touchRotationSpeed);
                 
-                // Limitar a rotação vertical para evitar virar de cabeça para baixo
-                const currentPitch = Math.asin(2 * (camera.quaternion.x * camera.quaternion.z - camera.quaternion.w * camera.quaternion.y));
-                const newPitch = currentPitch - deltaY * touchRotationSpeed;
-                
-                // Limitar o ângulo de inclinação para +/- 85 graus
-                const maxPitch = Math.PI * 0.47; // ~85 graus
-                if (Math.abs(newPitch) < maxPitch) {
-                    rotationYQuat.setFromAxisAngle(rightVector, -deltaY * touchRotationSpeed);
-                    camera.quaternion.premultiply(rotationYQuat);
-                }
-                
-                // Normalizar quaternion para evitar erros acumulativos
-                camera.quaternion.normalize();
+                camera.quaternion.premultiply(rotationXQuat);
+                camera.quaternion.premultiply(rotationYQuat);
                 
                 touchStartX = touchX;
                 touchStartY = touchY;
@@ -360,48 +272,6 @@
             
             touchArea.addEventListener('touchend', function(e) {
                 touchActive = false;
-                
-                // Adicionar inércia no movimento para uma experiência mais suave (opcional)
-                // Desativado por padrão, mas pode ser implementado se desejado
-            });
-            
-            // Adiciona support para "pinch to zoom" para ajustar a velocidade
-            let initialDistance = 0;
-            
-            touchArea.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 2) {
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    initialDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-                }
-            });
-            
-            touchArea.addEventListener('touchmove', function(e) {
-                if (e.touches.length === 2) {
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    const currentDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-                    
-                    if (initialDistance > 0) {
-                        const delta = currentDistance - initialDistance;
-                        if (Math.abs(delta) > 10) { // Um limiar mínimo para evitar mudanças acidentais
-                            const speedChange = delta > 0 ? 50 : -50;
-                            movementSpeed = Math.max(MIN_SPEED, Math.min(MAX_SPEED, movementSpeed + speedChange));
-                            initialDistance = currentDistance;
-                            updateSpeedDisplay();
-                            
-                            // Atualizar o slider também
-                            const percentage = Math.round((movementSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED) * 100);
-                            document.getElementById('speedSlider').value = percentage;
-                        }
-                    }
-                }
             });
             
             // Configurar botões direcionais
@@ -461,13 +331,20 @@
             if (isMobile) {
                 instructionsDiv.innerHTML = `
                     <h3>Sistema Solar</h3>
-                    <p>Arraste para girar | Botões para mover | Slider para velocidade</p>
+                    <p>Matheus Araújo Carvalho</p>
+                    <p>Arraste na tela para girar a câmera</p>
+                    <p>Use os botões direcionais para se mover</p>
+                    <p>Use o controle deslizante para ajustar a velocidade</p>
                 `;
             } else {
                 instructionsDiv.innerHTML = `
                     <h3>Sistema Solar</h3>
-                    <p>W,A,S,D - Movimento | Mouse - Rotação | Scroll - Velocidade</p>
-                    <p>Clique para começar | ESC para sair</p>
+                    <p>Matheus Araújo Carvalho</p>
+                    <p>W,A,S,D - Movimento</p>
+                    <p>Mouse - Rotação da câmera</p>
+                    <p>Scroll do Mouse - Aumentar/Diminuir velocidade</p>
+                    <p>Clique na tela para começar</p>
+                    <p>Precione ESC para sair</p>
                 `;
             }
             document.body.appendChild(instructionsDiv);
@@ -476,19 +353,14 @@
         function createSpeedDisplay() {
             speedDisplay = document.createElement('div');
             speedDisplay.style.position = 'absolute';
-            speedDisplay.style.bottom = isMobile ? '70px' : '20px';
+            speedDisplay.style.bottom = isMobile ? '60px' : '20px';
             speedDisplay.style.left = '20px';
             speedDisplay.style.color = '#ffffff';
-            speedDisplay.style.padding = '8px 12px';
+            speedDisplay.style.padding = '10px';
             speedDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            speedDisplay.style.borderRadius = '20px';
+            speedDisplay.style.borderRadius = '5px';
             speedDisplay.style.fontFamily = 'Arial, sans-serif';
             speedDisplay.style.zIndex = '100';
-            speedDisplay.style.fontSize = '14px';
-            speedDisplay.style.fontWeight = 'bold';
-            speedDisplay.style.backdropFilter = 'blur(4px)';
-            speedDisplay.style.webkitBackdropFilter = 'blur(4px)';
-            speedDisplay.style.border = '1px solid rgba(255,255,255,0.2)';
             updateSpeedDisplay();
             document.body.appendChild(speedDisplay);
         }
