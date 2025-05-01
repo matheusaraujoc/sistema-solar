@@ -28,23 +28,20 @@
             bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
-            width: 160px;
-            height: 160px;
-            z-index: 100;
-            pointer-events: auto;
+            width: 180px;
+            height: 180px;
         }
-        
         .mobile-button {
             position: absolute;
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             background-color: rgba(255,255,255,0.4);
-            border-radius: 25px;
+            border-radius: 30px;
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
             user-select: none;
             -webkit-user-select: none;
@@ -52,27 +49,26 @@
             -webkit-backdrop-filter: blur(4px);
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.2);
-            pointer-events: auto;
         }
-        
+        .mobile-button:active {
+            background-color: rgba(255,255,255,0.6);
+            transform: scale(0.95);
+        }
         .up-button {
             top: 0;
-            left: 55px;
+            left: 50px;
         }
-        
         .down-button {
             bottom: 0;
-            left: 55px;
+            left: 50px;
         }
-        
         .left-button {
             left: 0;
-            top: 55px;
+            top: 50px;
         }
-        
         .right-button {
             right: 0;
-            top: 55px;
+            top: 50px;
         }
         .speed-control {
             display: none;
@@ -119,45 +115,9 @@
             top: 0;
             left: 0;
             width: 100%;
-            bottom: 140px; /* reserva espaço para setas (80px) + slider (60px) */
-            z-index: 5;
-            pointer-events: auto;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        .speed-control {
-            display: none;
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80%;
-            max-width: 300px;
-            background-color: rgba(0,0,0,0.4);
-            padding: 10px;
-            border-radius: 20px;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            height: 70%;
             z-index: 10;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            pointer-events: none;
         }
-        .speed-slider {
-            width: 100%;
-            height: 30px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: rgba(255,255,255,0.2);
-            outline: none;
-            border-radius: 15px;
-            pointer-events: auto;
-            touch-action: manipulation;
-        }
-
         #touchDebug {
             display: none;
             position: absolute;
@@ -341,75 +301,68 @@
             document.body.appendChild(touchDebug);
             
             touchArea.addEventListener('touchstart', function(e) {
-                if (e.target === touchArea) {
-                    e.preventDefault();
-                    touchStartX = e.touches[0].clientX;
-                    touchStartY = e.touches[0].clientY;
-                    touchActive = true;
-                    lastTouchTime = performance.now();
-                    
-                    // Para debug
-                    // touchDebug.style.display = 'block';
-                    // touchDebug.textContent = `Start: ${touchStartX.toFixed(0)}, ${touchStartY.toFixed(0)}`;
-                }
-            }, {passive: false});
+                e.preventDefault();
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchActive = true;
+                lastTouchTime = performance.now();
+                
+                // Para debug
+                // touchDebug.style.display = 'block';
+                // touchDebug.textContent = `Start: ${touchStartX.toFixed(0)}, ${touchStartY.toFixed(0)}`;
+            });
             
             touchArea.addEventListener('touchmove', function(e) {
-                if (touchActive && e.target === touchArea) {
-                    e.preventDefault();
-                    
-                    const currentTime = performance.now();
-                    const deltaTime = currentTime - lastTouchTime;
-                    lastTouchTime = currentTime;
-                    
-                    // Limitar taxa de atualização para movimentos suaves
-                    if (deltaTime < 5) return;
-                    
-                    const touchX = e.touches[0].clientX;
-                    const touchY = e.touches[0].clientY;
-                    
-                    // Se o toque se mover para a região da barra de velocidade, ignore
-                    if (touchY > window.innerHeight * 0.7) {
-                        return;
-                    }
-                    
-                    const deltaX = (touchX - touchStartX) * touchSensitivity;
-                    const deltaY = (touchY - touchStartY) * touchSensitivity;
-                    
-                    // Aplicar rotação ao redor do eixo Y (horizontal)
-                    const rotationYAxis = new THREE.Vector3(0, 1, 0);
-                    const rotationXQuat = new THREE.Quaternion();
-                    rotationXQuat.setFromAxisAngle(rotationYAxis, -deltaX * touchRotationSpeed);
-                    camera.quaternion.premultiply(rotationXQuat);
-                    
-                    // Aplicar rotação ao redor do eixo X (vertical)
-                    // Obter o vetor "direita" da câmera para rotação vertical consistente
-                    const rightVector = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-                    const rotationYQuat = new THREE.Quaternion();
-                    
-                    // Limitar a rotação vertical para evitar virar de cabeça para baixo
-                    const currentPitch = Math.asin(2 * (camera.quaternion.x * camera.quaternion.z - camera.quaternion.w * camera.quaternion.y));
-                    const newPitch = currentPitch - deltaY * touchRotationSpeed;
-                    
-                    // Limitar o ângulo de inclinação para +/- 85 graus
-                    const maxPitch = Math.PI * 0.47; // ~85 graus
-                    if (Math.abs(newPitch) < maxPitch) {
-                        rotationYQuat.setFromAxisAngle(rightVector, -deltaY * touchRotationSpeed);
-                        camera.quaternion.premultiply(rotationYQuat);
-                    }
-                    
-                    // Normalizar quaternion para evitar erros acumulativos
-                    camera.quaternion.normalize();
-                    
-                    touchStartX = touchX;
-                    touchStartY = touchY;
+                e.preventDefault();
+                if (!touchActive) return;
+                
+                const currentTime = performance.now();
+                const deltaTime = currentTime - lastTouchTime;
+                lastTouchTime = currentTime;
+                
+                // Limitar taxa de atualização para movimentos suaves
+                if (deltaTime < 5) return;
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                const deltaX = (touchX - touchStartX) * touchSensitivity;
+                const deltaY = (touchY - touchStartY) * touchSensitivity;
+                
+                // Aplicar rotação ao redor do eixo Y (horizontal)
+                const rotationYAxis = new THREE.Vector3(0, 1, 0);
+                const rotationXQuat = new THREE.Quaternion();
+                rotationXQuat.setFromAxisAngle(rotationYAxis, -deltaX * touchRotationSpeed);
+                camera.quaternion.premultiply(rotationXQuat);
+                
+                // Aplicar rotação ao redor do eixo X (vertical)
+                // Obter o vetor "direita" da câmera para rotação vertical consistente
+                const rightVector = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                const rotationYQuat = new THREE.Quaternion();
+                
+                // Limitar a rotação vertical para evitar virar de cabeça para baixo
+                const currentPitch = Math.asin(2 * (camera.quaternion.x * camera.quaternion.z - camera.quaternion.w * camera.quaternion.y));
+                const newPitch = currentPitch - deltaY * touchRotationSpeed;
+                
+                // Limitar o ângulo de inclinação para +/- 85 graus
+                const maxPitch = Math.PI * 0.47; // ~85 graus
+                if (Math.abs(newPitch) < maxPitch) {
+                    rotationYQuat.setFromAxisAngle(rightVector, -deltaY * touchRotationSpeed);
+                    camera.quaternion.premultiply(rotationYQuat);
                 }
-            }, {passive: false});
+                
+                // Normalizar quaternion para evitar erros acumulativos
+                camera.quaternion.normalize();
+                
+                touchStartX = touchX;
+                touchStartY = touchY;
+            });
             
             touchArea.addEventListener('touchend', function(e) {
-                if (e.target === touchArea) {
-                    touchActive = false;
-                }
+                touchActive = false;
+                
+                // Adicionar inércia no movimento para uma experiência mais suave (opcional)
+                // Desativado por padrão, mas pode ser implementado se desejado
             });
             
             // Adiciona support para "pinch to zoom" para ajustar a velocidade
@@ -451,77 +404,46 @@
                 }
             });
             
-            // Configurar botões direcionais com stopPropagation para evitar conflitos
+            // Configurar botões direcionais
             document.getElementById('upButton').addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                e.stopPropagation(); // Impede que o evento chegue na área de toque
                 keys.w = true;
-            }, {passive: false});
+            });
             document.getElementById('upButton').addEventListener('touchend', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
                 keys.w = false;
-            }, {passive: false});
+            });
             
             document.getElementById('downButton').addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                e.stopPropagation();
                 keys.s = true;
-            }, {passive: false});
+            });
             document.getElementById('downButton').addEventListener('touchend', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
                 keys.s = false;
-            }, {passive: false});
+            });
             
             document.getElementById('leftButton').addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                e.stopPropagation();
                 keys.a = true;
-            }, {passive: false});
+            });
             document.getElementById('leftButton').addEventListener('touchend', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
                 keys.a = false;
-            }, {passive: false});
+            });
             
             document.getElementById('rightButton').addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                e.stopPropagation();
                 keys.d = true;
-            }, {passive: false});
+            });
             document.getElementById('rightButton').addEventListener('touchend', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
                 keys.d = false;
-            }, {passive: false});
+            });
             
             // Configurar controle deslizante de velocidade
             const speedSlider = document.getElementById('speedSlider');
-            speedSlider.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }, { passive: false });
-            speedSlider.addEventListener('touchmove', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }, { passive: false });
-            speedSlider.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }, { passive: false });
-
-
-            const speedControl = document.querySelector('.speed-control');
-            speedControl.addEventListener('touchstart', function(e) {
-                e.stopPropagation();
-            }, {passive: false});
-            speedControl.addEventListener('touchmove', function(e) {
-                e.stopPropagation();
-            }, {passive: false});
-            speedControl.addEventListener('touchend', function(e) {
-                e.stopPropagation();
-            }, {passive: false});
+            speedSlider.addEventListener('input', function(e) {
+                const percentage = parseInt(e.target.value);
+                movementSpeed = MIN_SPEED + (percentage / 100) * (MAX_SPEED - MIN_SPEED);
+                updateSpeedDisplay();
+            });
         }
 
         function createInstructions() {
