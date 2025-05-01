@@ -123,7 +123,41 @@
             z-index: 5;
             pointer-events: auto;
             touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
+
+        .speed-control {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 300px;
+            background-color: rgba(0,0,0,0.4);
+            padding: 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 10;
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .speed-slider {
+            width: 100%;
+            height: 30px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255,255,255,0.2);
+            outline: none;
+            border-radius: 15px;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
         #touchDebug {
             display: none;
             position: absolute;
@@ -334,6 +368,11 @@
                     const touchX = e.touches[0].clientX;
                     const touchY = e.touches[0].clientY;
                     
+                    // Se o toque se mover para a região da barra de velocidade, ignore
+                    if (touchY > window.innerHeight * 0.7) {
+                        return;
+                    }
+                    
                     const deltaX = (touchX - touchStartX) * touchSensitivity;
                     const deltaY = (touchY - touchStartY) * touchSensitivity;
                     
@@ -460,10 +499,22 @@
             // Configurar controle deslizante de velocidade
             const speedSlider = document.getElementById('speedSlider');
             speedSlider.addEventListener('input', function(e) {
+                e.stopPropagation(); // Impede propagação do evento
                 const percentage = parseInt(e.target.value);
                 movementSpeed = MIN_SPEED + (percentage / 100) * (MAX_SPEED - MIN_SPEED);
                 updateSpeedDisplay();
             });
+
+            const speedControl = document.querySelector('.speed-control');
+            speedControl.addEventListener('touchstart', function(e) {
+                e.stopPropagation();
+            }, {passive: false});
+            speedControl.addEventListener('touchmove', function(e) {
+                e.stopPropagation();
+            }, {passive: false});
+            speedControl.addEventListener('touchend', function(e) {
+                e.stopPropagation();
+            }, {passive: false});
         }
 
         function createInstructions() {
