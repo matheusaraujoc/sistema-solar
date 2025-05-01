@@ -119,7 +119,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 70%;
+            bottom: 140px; /* reserva espaço para setas (80px) + slider (60px) */
             z-index: 5;
             pointer-events: auto;
             touch-action: none;
@@ -143,8 +143,8 @@
             z-index: 10;
             user-select: none;
             -webkit-user-select: none;
-            pointer-events: auto;
             touch-action: none;
+            pointer-events: none;
         }
         .speed-slider {
             width: 100%;
@@ -498,12 +498,19 @@
             
             // Configurar controle deslizante de velocidade
             const speedSlider = document.getElementById('speedSlider');
-            speedSlider.addEventListener('input', function(e) {
-                e.stopPropagation(); // Impede propagação do evento
-                const percentage = parseInt(e.target.value);
-                movementSpeed = MIN_SPEED + (percentage / 100) * (MAX_SPEED - MIN_SPEED);
-                updateSpeedDisplay();
-            });
+            speedSlider.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { passive: false });
+            speedSlider.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { passive: false });
+            speedSlider.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { passive: false });
+
 
             const speedControl = document.querySelector('.speed-control');
             speedControl.addEventListener('touchstart', function(e) {
