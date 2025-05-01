@@ -30,6 +30,7 @@
             transform: translateX(-50%);
             width: 150px;
             height: 150px;
+            z-index: 20;
         }
         .mobile-button {
             position: absolute;
@@ -137,6 +138,11 @@
         let rotationX = 0;
         let rotationY = 0;
         let touchActive = false;
+        
+        // Variáveis para o giroscópio/rotação suave da câmera
+        let targetRotationX = 0;
+        let targetRotationY = 0;
+        const rotationSmoothness = 0.15; // 0 a 1, menor = mais suave
 
         const planetData = [
             { name: "Mercúrio", color: 0xC4C4C4, size: 3.8, distance: 60, speed: 0.008, moons: [] },
@@ -236,76 +242,55 @@
         }
 
         function setupMobileControls() {
-            // Configurar controles de toque para rotação da câmera
+            // Nova implementação para controles de toque para rotação da câmera
             const touchArea = document.getElementById('touchArea');
             
             touchArea.addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                touchActive = true;
+                if (e.touches.length === 1) {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    touchActive = true;
+                }
             });
             
             touchArea.addEventListener('touchmove', function(e) {
                 e.preventDefault();
-                if (!touchActive) return;
+                if (!touchActive || e.touches.length !== 1) return;
                 
                 const touchX = e.touches[0].clientX;
                 const touchY = e.touches[0].clientY;
                 
+                // Calcular a diferença de posição
                 const deltaX = touchX - touchStartX;
                 const deltaY = touchY - touchStartY;
                 
-                // Aplicar a rotação diretamente aos quaternions da câmera
-                const rotationXQuat = new THREE.Quaternion();
-                rotationXQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -deltaX * touchRotationSpeed);
-                
-                const rotationYQuat = new THREE.Quaternion();
-                rotationYQuat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -deltaY * touchRotationSpeed);
-                
-                camera.quaternion.premultiply(rotationXQuat);
-                camera.quaternion.premultiply(rotationYQuat);
-                
+                // Atualizar as posições de início para o próximo evento
                 touchStartX = touchX;
                 touchStartY = touchY;
+                
+                // Atualizar as rotações alvo (inversão para uma sensação mais natural)
+                targetRotationX -= deltaX * touchRotationSpeed;
+                targetRotationY -= deltaY * touchRotationSpeed;
+                
+                // Limitar a rotação vertical para evitar virar de cabeça para baixo
+                targetRotationY = Math.max(Math.min(targetRotationY, Math.PI/2), -Math.PI/2);
             });
             
             touchArea.addEventListener('touchend', function(e) {
                 touchActive = false;
             });
             
-            // Configurar botões direcionais
-            document.getElementById('upButton').addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                keys.w = true;
-            });
-            document.getElementById('upButton').addEventListener('touchend', function(e) {
-                keys.w = false;
+            touchArea.addEventListener('touchcancel', function(e) {
+                touchActive = false;
             });
             
-            document.getElementById('downButton').addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                keys.s = true;
-            });
-            document.getElementById('downButton').addEventListener('touchend', function(e) {
-                keys.s = false;
-            });
-            
-            document.getElementById('leftButton').addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                keys.a = true;
-            });
-            document.getElementById('leftButton').addEventListener('touchend', function(e) {
-                keys.a = false;
-            });
-            
-            document.getElementById('rightButton').addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                keys.d = true;
-            });
-            document.getElementById('rightButton').addEventListener('touchend', function(e) {
-                keys.d = false;
-            });
+            // Configurar botões direcionais com eventos de toque melhorados
+            // Usando o método active que permite manter movimento enquanto gira a câmera
+            configureButtonTouchEvents('upButton', 'w');
+            configureButtonTouchEvents('downButton', 's');
+            configureButtonTouchEvents('leftButton', 'a');
+            configureButtonTouchEvents('rightButton', 'd');
             
             // Configurar controle deslizante de velocidade
             const speedSlider = document.getElementById('speedSlider');
@@ -314,6 +299,24 @@
                 movementSpeed = MIN_SPEED + (percentage / 100) * (MAX_SPEED - MIN_SPEED);
                 updateSpeedDisplay();
             });
+        }
+
+        function configureButtonTouchEvents(buttonId, keyName) {
+            const button = document.getElementById(buttonId);
+            
+            // Usar preventDefault somente em casos específicos para permitir interação simultânea
+            button.addEventListener('touchstart', function(e) {
+                e.stopPropagation(); // Isso impede a propagação para o touchArea
+                keys[keyName] = true;
+            }, { passive: true });
+            
+            button.addEventListener('touchend', function(e) {
+                keys[keyName] = false;
+            }, { passive: true });
+            
+            button.addEventListener('touchcancel', function(e) {
+                keys[keyName] = false;
+            }, { passive: true });
         }
 
         function createInstructions() {
@@ -650,6 +653,29 @@
             }
             
             return true;
+        }
+
+        // Atualizar a rotação da câmera com base no toque (suavizado)
+        function updateCameraRotation() {
+            if (!isMobile) return;
+            
+            // Atualizar a rotação da câmera gradualmente para suavizar o movimento
+            rotationX += (targetRotationX - rotationX) * rotationSmoothness;
+            rotationY += (targetRotationY - rotationY) * rotationSmoothness;
+            
+            // Limitar a rotação vertical para evitar virar de cabeça para baixo
+            rotationY = Math.max(Math.min(rotationY, Math.PI/2 - 0.1), -Math.PI/2 + 0.1);
+            
+            // Criar quaternions para aplicar as rotações
+            const xQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationX);
+            const yQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), rotationY);
+            
+            // Resetar a rotação da câmera
+            camera.quaternion.identity();
+            
+            // Aplicar as rotações na ordem correta
+            camera.quaternion.multiply(xQuaternion);
+            camera.quaternion.multiply(yQuaternion);
         }
 
         function animate() {
