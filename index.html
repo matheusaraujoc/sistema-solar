@@ -9,6 +9,7 @@
             margin: 0; 
             overflow: hidden; 
             cursor: pointer;
+            touch-action: none;
         }
         .info {
             width: 100%;
@@ -20,9 +21,54 @@
             padding: 10px 0;
             top: 20px;
         }
+        #mobile-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: none;
+            z-index: 100;
+        }
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 50px;
+            font-size: 20px;
+            color: white;
+            user-select: none;
+            margin: 5px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            touch-action: manipulation;
+        }
+        .control-row {
+            display: flex;
+            justify-content: center;
+        }
+        #touch-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <div id="touch-area"></div>
+    <div id="mobile-controls">
+        <div class="control-row">
+            <div class="control-btn" id="btn-up">▲</div>
+        </div>
+        <div class="control-row">
+            <div class="control-btn" id="btn-left">◀</div>
+            <div class="control-btn" id="btn-down">▼</div>
+            <div class="control-btn" id="btn-right">▶</div>
+        </div>
+    </div>
     <script type="importmap">
         {
             "imports": {
@@ -44,6 +90,12 @@
         const keys = {w: false, a: false, s: false, d: false, space: false, shift: false};
         let prevTime = performance.now();
         const MIN_PLANET_DISTANCE = 15, MIN_SUN_DISTANCE = 50, MIN_SATELLITE_DISTANCE = 10;
+        
+        // Mobile variables
+        let isMobile = false;
+        let touchStartX = 0, touchStartY = 0;
+        let touchDeltaX = 0, touchDeltaY = 0;
+        const TOUCH_SENSITIVITY = 0.005;
 
         const planetData = [
             { name: "Mercúrio", color: 0xC4C4C4, size: 3.8, distance: 60, speed: 0.008, moons: [] },
@@ -99,10 +151,19 @@
             { x: -120, y: -90, z: -220 }
         ];
 
+        // Detect mobile device
+        function detectMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   window.innerWidth <= 800;
+        }
+        
         init();
         animate();
 
         function init() {
+            // Check if device is mobile
+            isMobile = detectMobile();
+            
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x000000);
             
@@ -118,7 +179,13 @@
             createSatellites();
             
             controls = new PointerLockControls(camera, document.body);
-            document.body.addEventListener('click', () => controls.lock());
+            
+            // Setup appropriate controls for device type
+            if (isMobile) {
+                setupMobileControls();
+            } else {
+                document.body.addEventListener('click', () => controls.lock());
+            }
             
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -142,15 +209,27 @@
             instructionsDiv.style.color = '#ffffff';
             instructionsDiv.style.padding = '10px';
             instructionsDiv.style.fontFamily = 'Arial, sans-serif';
-            instructionsDiv.innerHTML = `
-                <h3>Sistema Solar</h3>
-                <p>Matheus Araújo Carvalho</p>
-                <p>W,A,S,D - Movimento</p>
-                <p>Mouse - Rotação da câmera</p>
-                <p>Scroll do Mouse - Aumentar/Diminuir velocidade</p>
-                <p>Clique na tela para começar</p>
-                <p>Precione ESC para sair</p>
-            `;
+            
+            if (isMobile) {
+                instructionsDiv.innerHTML = `
+                    <h3>Sistema Solar</h3>
+                    <p>Matheus Araújo Carvalho</p>
+                    <p>Use os botões na tela para movimento</p>
+                    <p>Toque e arraste para girar a câmera</p>
+                    <p>Toque na tela para começar</p>
+                `;
+            } else {
+                instructionsDiv.innerHTML = `
+                    <h3>Sistema Solar</h3>
+                    <p>Matheus Araújo Carvalho</p>
+                    <p>W,A,S,D - Movimento na direção do olhar</p>
+                    <p>Mouse - Rotação da câmera</p>
+                    <p>Scroll do Mouse - Aumentar/Diminuir velocidade</p>
+                    <p>Clique na tela para começar</p>
+                    <p>Precione ESC para sair</p>
+                `;
+            }
+            
             document.body.appendChild(instructionsDiv);
         }
 
@@ -455,6 +534,73 @@
             return true;
         }
 
+        function setupMobileControls() {
+            // Show mobile controls
+            const mobileControls = document.getElementById('mobile-controls');
+            mobileControls.style.display = 'block';
+            
+            const touchArea = document.getElementById('touch-area');
+            touchArea.style.display = 'block';
+            
+            // Lock controls on first touch
+            document.body.addEventListener('touchstart', () => {
+                if (!controls.isLocked) {
+                    controls.lock();
+                }
+            }, { once: true });
+            
+            // Touch controls for camera rotation
+            touchArea.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 1) {
+                    touchStartX = e.touches[0].pageX;
+                    touchStartY = e.touches[0].pageY;
+                    touchDeltaX = 0;
+                    touchDeltaY = 0;
+                }
+            });
+            
+            touchArea.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 1) {
+                    const touchX = e.touches[0].pageX;
+                    const touchY = e.touches[0].pageY;
+                    
+                    touchDeltaX = touchX - touchStartX;
+                    touchDeltaY = touchY - touchStartY;
+                    
+                    // Apply rotation by manipulating the camera directly
+                    if (controls.isLocked) {
+                        camera.rotation.y -= touchDeltaX * TOUCH_SENSITIVITY;
+                        
+                        // Limit vertical rotation to avoid gimbal lock
+                        const verticalRotation = camera.rotation.x - touchDeltaY * TOUCH_SENSITIVITY;
+                        camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, verticalRotation));
+                    }
+                    
+                    touchStartX = touchX;
+                    touchStartY = touchY;
+                }
+            });
+            
+            // Direction buttons controls
+            const btnUp = document.getElementById('btn-up');
+            const btnDown = document.getElementById('btn-down');
+            const btnLeft = document.getElementById('btn-left');
+            const btnRight = document.getElementById('btn-right');
+            
+            // Touch events for mobile buttons
+            btnUp.addEventListener('touchstart', () => { keys.w = true; });
+            btnUp.addEventListener('touchend', () => { keys.w = false; });
+            
+            btnDown.addEventListener('touchstart', () => { keys.s = true; });
+            btnDown.addEventListener('touchend', () => { keys.s = false; });
+            
+            btnLeft.addEventListener('touchstart', () => { keys.a = true; });
+            btnLeft.addEventListener('touchend', () => { keys.a = false; });
+            
+            btnRight.addEventListener('touchstart', () => { keys.d = true; });
+            btnRight.addEventListener('touchend', () => { keys.d = false; });
+        }
+        
         function animate() {
             requestAnimationFrame(animate);
 
@@ -472,10 +618,11 @@
                 satellite.rotation.x += 0.0002;
             });
 
-            if (controls.isLocked === true) {
-                const time = performance.now();
-                const delta = (time - prevTime) / 1000;
-
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            
+            // For mobile, we want to process movement even if pointerlock isn't active
+            if ((controls.isLocked === true) || (isMobile && touchArea)) {
                 velocity.x = 0;
                 velocity.y = 0;
                 velocity.z = 0;
@@ -505,10 +652,9 @@
                 if (isSafePosition(predictedPosition)) {
                     camera.position.copy(predictedPosition);
                 }
-
-                prevTime = time;
             }
 
+            prevTime = time;
             renderer.render(scene, camera);
         }
     </script>
